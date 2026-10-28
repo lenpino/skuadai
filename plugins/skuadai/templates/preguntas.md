@@ -6,7 +6,7 @@ Formato de cada entrada:
 
 ```
 ## P-001 [abierta] T-02 · desarrollador
-**Tipo:** desvío | gap | decisión
+**Tipo:** desvío | gap | conflicto | decisión | diferencia funcional (migración)
 **Contexto:** qué encontró en el código y dónde (archivo:línea).
 **Pregunta:** qué necesita saber.
 **Opciones consideradas:** A) … B) …

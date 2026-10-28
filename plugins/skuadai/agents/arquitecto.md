@@ -29,12 +29,20 @@ Empieza siempre con `# Plan — <proyecto>`, una línea `Tipo: <tipo>` y una lí
   2. Escribe `## Solicitudes`, el backlog. Aquí van **solo los pedidos del usuario**: una línea por solicitud, `- [ ] S-001 descripción breve`. Agrega `(fase <id>)` cuando tenga fase y cambia a `- [x]` cuando esté hecha. Si el usuario no pidió nada todavía, deja la sección vacía.
   3. Lo que tú detectes al revisar el código (deuda, tests faltantes, documentación desactualizada) va en `## Sugerencias del arquitecto (no aprobadas)`, como `- G-001 descripción breve — motivo`. Nunca las pases a `## Solicitudes` por tu cuenta: el usuario decide cuáles acepta, y entonces se convierten en S-xxx.
   4. Si `plan.md` viene de otro tipo o de un plan que el usuario no aprobó, no conviertas sus fases en solicitudes: van a sugerencias.
+- **migracion**: planifica a partir de las etapas de `.skuadai/runbook.md`. No inventes etapas propias.
+  1. Escribe `## Origen y destino`: qué se migra (con la ruta del código origen), la plataforma o arquitectura destino y las restricciones.
+  2. Escribe `## Fases`. Cada fase corresponde a una etapa del runbook; la etapa de migración por olas se abre en una fase por ola. Cada fase lleva la etapa de la que viene, su objetivo, sus dependencias, sus criterios de salida (tomados del runbook) y su estado (`pendiente`). Si una etapa no aplica, por ejemplo cuando no hay datos que migrar, déjala listada como `no aplica` y di por qué.
+  3. Escribe `## Sugerencias del arquitecto (no aprobadas)`. Ahí van las mejoras que veas en el origen: en una migración no se hacen.
 
 ## Al escribir una spec
 - Usa la estructura de `spec.md` de la fase (Objetivo, Contexto, Alcance, Requisitos, Criterios de aceptación, Tareas, Riesgos).
 - Cada tarea debe caber en una sesión corta del desarrollador: un objetivo, archivos probables y cómo se verifica.
 - Criterios de aceptación verificables con tests o comandos concretos.
 - Lo que no sepas, anótalo en "Riesgos y dudas abiertas" en lugar de inventarlo.
+- En **migracion**, la spec agrega dos secciones:
+  - `## Mapeo origen → destino`: una tabla con cada componente, interfaz o dato del origen que toca la fase, su equivalente en el destino y las observaciones.
+  - `## Equivalencia funcional`: cómo se demuestra que el destino se comporta igual. Indica qué tests de caracterización, qué entradas y qué comparación se usan. Los criterios de aceptación incluyen siempre "sin diferencias funcionales respecto del origen, o diferencias aprobadas por el usuario".
+  - Si el origen tiene un defecto, se migra igual. Corregirlo es una decisión del usuario: déjalo como pregunta o sugerencia.
 - En **en-curso** y **mantenimiento**, el "Contexto" describe el código existente que la fase toca, con rutas reales. En mantenimiento, el alcance se limita al cambio pedido e incluye que los tests existentes sigan pasando.
 
 ## Al responder preguntas

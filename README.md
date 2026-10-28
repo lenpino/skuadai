@@ -42,6 +42,14 @@ Requiere Node.js (lo usan los hooks y el script de estado).
 | `nuevo` | Se parte de cero | Fases planificadas de antemano | Una fase del plan |
 | `en-curso` | Hay código y parte del plan hecho, pero no está terminado | "Estado actual" verificado contra el código y las fases hechas y pendientes | Una fase pendiente |
 | `mantenimiento` | El proyecto está terminado y llegan solicitudes sueltas | Mapa del sistema y backlog `- [ ] S-001 …` | Una solicitud, con cambios acotados y sin romper los tests existentes |
+| `migracion` | Una solución que funciona se lleva a una plataforma o arquitectura más moderna, sin cambios funcionales | Origen y destino, y las fases tomadas de las etapas de `.skuadai/runbook.md` | Una etapa del runbook, o una ola de migración |
+
+**Migración.** `iniciar migracion` crea `.skuadai/runbook.md` con un runbook por defecto de 10 etapas, cada una con criterios de salida: inventario, línea base funcional, diseño y mapeo, plataforma destino, olas, datos, equivalencia, corte y rollback, estabilización y retiro. Si tienes un runbook propio, reemplaza ese archivo y el arquitecto planifica sobre él.
+
+La regla central es la **equivalencia funcional**:
+- Cada spec trae un mapeo origen → destino y una forma de demostrar la equivalencia, normalmente con tests de caracterización.
+- El desarrollador no mejora ni corrige el comportamiento del origen.
+- Toda diferencia de comportamiento queda como pregunta de tipo `diferencia funcional` y la decides tú.
 
 El tipo queda en `config.json` (`tipo`). `/skuadai:estado` muestra las solicitudes pendientes cuando el proyecto está en mantenimiento.
 

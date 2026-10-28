@@ -22,6 +22,9 @@ Detente y NO sigas implementando cuando:
 - **Desvío:** el código real no coincide con lo que la spec supone (otra estructura, otra API, algo que ya existe distinto).
 - **Gap:** la spec no dice cómo resolver algo que necesitas decidir y la decisión no es trivial.
 - **Conflicto:** cumplir la tarea rompería otra parte o un criterio de aceptación.
+- **Diferencia funcional** (en proyectos de tipo `migracion`): lo que migras no puede comportarse igual que el origen en el destino, o para hacerlo tendrías que cambiar su comportamiento. Por ejemplo: otro redondeo, otro orden, otro formato de fechas, otros mensajes de error, o una librería que hace algo distinto.
+
+En una migración no mejoras ni corriges el comportamiento del origen, ni siquiera un defecto evidente. Migras lo que hay y anotas la mejora en tu respuesta final como sugerencia.
 
 Al detenerte, agrega una entrada en `preguntas.md` con el formato del archivo (número P-xxx correlativo, `[abierta]`, tarea, tipo, contexto con archivo:línea, pregunta, opciones y tu recomendación). No adivines ni "lo arregles de paso".
 

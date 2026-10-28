@@ -2,7 +2,7 @@
 // SkuadAI: utilidades del plugin (estructura del proyecto, hooks y costos).
 // Uso:
 //   node skuadai.js iniciar [tipo]     crea .skuadai/ en el directorio actual
-//                                      (tipo: nuevo | en-curso | mantenimiento)
+//                                      (tipo: nuevo | en-curso | mantenimiento | migracion)
 //   node skuadai.js fase <id>          crea .skuadai/fases/fase-<id>/ y la marca activa
 //   node skuadai.js estado [fase]      avance por fase y tokens por etapa y rol
 //   node skuadai.js hook-inicio        hook SessionStart (lee JSON por stdin)
@@ -14,7 +14,7 @@ const path = require("path");
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATES = path.join(PLUGIN_ROOT, "templates");
 const MAX_PROGRESO = 6000;
-const TIPOS = ["nuevo", "en-curso", "mantenimiento"];
+const TIPOS = ["nuevo", "en-curso", "mantenimiento", "migracion"];
 
 // ---------- utilidades ----------
 
@@ -56,6 +56,7 @@ function rutas(raiz) {
     base,
     config: path.join(base, "config.json"),
     plan: path.join(base, "plan.md"),
+    runbook: path.join(base, "runbook.md"),
     fases: path.join(base, "fases"),
     sesiones: path.join(base, "costos", "sesiones"),
   };
@@ -137,7 +138,12 @@ function iniciar(tipo) {
   fs.mkdirSync(r.sesiones, { recursive: true });
   console.log(creados.length ? `Creado: ${creados.join(", ")}` : "SkuadAI ya estaba iniciado en este proyecto; no se sobrescribió nada.");
   console.log(`Raíz: ${raiz}`);
-  console.log(`Tipo: ${leerJSON(r.config, {}).tipo || "sin definir (pregúntalo al usuario)"}`);
+  const tipoFinal = leerJSON(r.config, {}).tipo;
+  console.log(`Tipo: ${tipoFinal || "sin definir (pregúntalo al usuario)"}`);
+  if (tipoFinal === "migracion") {
+    const copiado = copiarPlantilla("runbook-migracion.md", r.runbook, { proyecto: path.basename(raiz) });
+    console.log(copiado ? "runbook.md: creado con el runbook por defecto (reemplázalo si tienes uno propio)." : "runbook.md: ya existe.");
+  }
   console.log(fs.existsSync(r.plan) ? "plan.md: ya existe." : "plan.md: pendiente (lo escribe el arquitecto).");
 }
 
@@ -431,6 +437,9 @@ function hookInicio() {
     .filter(([, v]) => v.activo)
     .map(([k, v]) => `${k}=${v.modelo}`);
   lineas.push(`Proyecto SkuadAI: ${config.proyecto || path.basename(raiz)} · tipo: ${config.tipo || "sin definir"} · roles: ${roles.join(", ")}`);
+  if (config.tipo === "migracion") {
+    lineas.push("Migración: sin cambios funcionales. Toda diferencia de comportamiento es una pregunta para el usuario. Etapas en .skuadai/runbook.md.");
+  }
   if (config.tipo === "mantenimiento") {
     const pend = solicitudesPendientes(r.plan);
     if (pend.length) lineas.push(`Solicitudes pendientes en plan.md (${pend.length}):\n- ${pend.slice(0, 10).join("\n- ")}`);
