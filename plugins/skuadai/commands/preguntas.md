@@ -2,7 +2,7 @@
 description: Revisa las preguntas abiertas de la fase y las resuelve con el arquitecto y contigo
 argument-hint: "[id de fase]"
 ---
-Fase: `$ARGUMENTS` o, si no se indica, `faseActiva` de `.skuadai/config.json`.
+Fase indicada por el usuario (puede venir vacía): «$ARGUMENTS». Si está vacía, usa `faseActiva` de `.skuadai/config.json`.
 
 1. Lee `preguntas.md` de la fase y lista las entradas `[abierta]`: número, tarea, tipo y la pregunta en una línea.
 2. Si no hay ninguna, dilo y sugiere `/skuadai:implementar`.

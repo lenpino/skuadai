@@ -105,14 +105,11 @@ function iniciar() {
     escribirJSON(r.config, config);
     creados.push(".skuadai/config.json");
   }
-  if (!fs.existsSync(r.plan)) {
-    fs.writeFileSync(r.plan, `# Plan de trabajo — ${path.basename(raiz)}\n\n## Fases\n\n<!-- 01. Nombre: objetivo en una línea (depende de: —) -->\n`);
-    creados.push(".skuadai/plan.md");
-  }
   fs.mkdirSync(r.fases, { recursive: true });
   fs.mkdirSync(r.sesiones, { recursive: true });
   console.log(creados.length ? `Creado: ${creados.join(", ")}` : "SkuadAI ya estaba iniciado en este proyecto; no se sobrescribió nada.");
   console.log(`Raíz: ${raiz}`);
+  console.log(fs.existsSync(r.plan) ? "plan.md: ya existe." : "plan.md: pendiente (lo escribe el arquitecto).");
 }
 
 function crearFase(id) {
@@ -139,10 +136,11 @@ function crearFase(id) {
 
 // ---------- costos ----------
 
+// Precio por familia (opus, sonnet…). Un ID exacto en la tabla, si existe, tiene prioridad.
 function precioDe(modelo, precios) {
-  if (precios[modelo]) return precios[modelo];
+  if (precios[modelo] && typeof precios[modelo] === "object") return precios[modelo];
   for (const familia of ["fable", "mythos", "opus", "sonnet", "haiku"]) {
-    if (modelo.includes(familia)) return precios[familia] || precios.fable || null;
+    if (modelo.includes(familia)) return precios[familia] || (familia === "mythos" ? precios.fable : null) || null;
   }
   return null;
 }

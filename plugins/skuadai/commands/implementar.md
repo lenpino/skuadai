@@ -2,7 +2,8 @@
 description: Implementa las tareas pendientes de una fase, una por vez, con subagentes de contexto limpio
 argument-hint: "[id de fase] [T-xx]"
 ---
-Argumentos: `$ARGUMENTS` (opcionales: id de fase y una tarea concreta). Sin fase, usa `faseActiva` de `.skuadai/config.json`.
+Argumentos que el usuario escribió junto al comando (pueden venir vacíos): «$ARGUMENTS»
+Son opcionales: un id de fase y una tarea concreta (T-xx). Sin fase, usa `faseActiva` de `.skuadai/config.json`; sin tarea, la siguiente pendiente.
 
 Eres el **orquestador**. Tu trabajo es coordinar, no implementar: no leas ni edites código tú mismo. Así esta sesión se mantiene liviana y cada rol trabaja con contexto limpio.
 

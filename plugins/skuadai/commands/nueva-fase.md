@@ -2,7 +2,8 @@
 description: Crea una fase y hace que el arquitecto escriba su spec
 argument-hint: "<id de fase, ej. 03> [qué debe lograr la fase]"
 ---
-Argumentos: `$ARGUMENTS` (el primer término es el id de la fase; el resto, la descripción).
+Argumentos que el usuario escribió junto al comando (pueden venir vacíos): «$ARGUMENTS»
+El primer término es el id de la fase y el resto, la descripción. Si falta el id, propón el siguiente según las fases existentes en `.skuadai/fases/` y `plan.md`, y confírmalo con el usuario. Si falta la descripción, usa lo que dice `plan.md` sobre esa fase y pregunta si quiere agregar algo.
 
 1. Crea la carpeta de la fase con el script del plugin (ruta en "SkuadAI plugin root" del contexto, o `${CLAUDE_PLUGIN_ROOT}`):
    ```
