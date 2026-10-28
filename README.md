@@ -108,3 +108,8 @@ Las transcripciones no registran cómo se reparte el contexto entre system promp
 - Más roles (UX/UI, revisor de seguridad) definidos desde `config.json`.
 - Dashboard HTML de costos y avance.
 - Modo automático con `claude -p` por tarea para un reinicio total entre tareas.
+- **TODO: motor externo para el desarrollador (Codex).** Agregar una opción experimental, `roles.desarrollador.motor: "codex"`. Con ella, un rol envoltorio liviano (haiku) arma el encargo con la tarea de la spec y las reglas de SkuadAI y llama a `codex exec`. Después verifica el resultado con tests y diff y actualiza `progreso.md`. Alternativa: registrar Codex como servidor MCP, según la versión de la CLI.
+  - **Costos:** el consumo de Codex va a la cuenta de OpenAI y `estado` no lo cuenta.
+  - **Reglas:** la regla de detención y la de equivalencia funcional las controla el envoltorio.
+  - **Datos:** confirmar la política de la organización antes de enviar código a OpenAI.
+- **TODO: escalamiento automático a Opus.** Cuando una tarea termina `FALLIDA` o el tester la marca `CON FALLAS` dos veces con el modelo del desarrollador, reintentarla con Opus y anotarlo en `progreso.md`.
