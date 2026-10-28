@@ -11,7 +11,7 @@ Lee `tipo` en `.skuadai/config.json`. Si no está definido, pregúntale al usuar
 
 **Si falta la descripción:**
 - **nuevo** o **en-curso**: usa lo que dice `plan.md` sobre esa fase y pregunta si quiere agregar algo.
-- **mantenimiento**: muestra las solicitudes pendientes (`- [ ] S-xxx`) de `plan.md` y pregunta cuál trabajar, o cuál es la solicitud nueva.
+- **mantenimiento**: muestra las solicitudes pendientes (`- [ ] S-xxx`) de `plan.md` y pregunta cuál trabajar, o cuál es la solicitud nueva. Si elige una sugerencia del arquitecto (G-xxx), muévela primero a `## Solicitudes` como S-xxx: elegirla cuenta como aceptarla.
 
 1. Crea la carpeta de la fase con el script del plugin (ruta en "SkuadAI plugin root" del contexto, o `${CLAUDE_PLUGIN_ROOT}`):
    ```

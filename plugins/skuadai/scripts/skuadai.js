@@ -105,6 +105,12 @@ function solicitudesPendientes(archivo) {
     .map((l) => l.replace(/^\s*- \[ \] /, ""));
 }
 
+// Sugerencias del arquitecto en mantenimiento: "- G-001 …" (propuestas que el usuario no aprobó).
+function sugerenciasArquitecto(archivo) {
+  if (!fs.existsSync(archivo)) return 0;
+  return fs.readFileSync(archivo, "utf8").split(/\r?\n/).filter((l) => /^\s*- G-\d+/.test(l)).length;
+}
+
 // ---------- comandos ----------
 
 function iniciar(tipo) {
@@ -331,6 +337,8 @@ function estado(faseFiltro) {
     const pend = solicitudesPendientes(r.plan);
     console.log(`## Solicitudes pendientes (${pend.length})`);
     console.log((pend.length ? pend.map((p) => `- ${p}`).join("\n") : "(ninguna)") + "\n");
+    const sug = sugerenciasArquitecto(r.plan);
+    if (sug) console.log(`Sugerencias del arquitecto sin aprobar: ${sug} (en plan.md; no cuentan como pendientes).\n`);
   }
 
   console.log("## Fases");

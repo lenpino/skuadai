@@ -45,6 +45,16 @@ Requiere Node.js (lo usan los hooks y el script de estado).
 
 El tipo queda en `config.json` (`tipo`). `/skuadai:estado` muestra las solicitudes pendientes cuando el proyecto está en mantenimiento.
 
+En mantenimiento, el backlog (`## Solicitudes`) tiene solo lo que pide el usuario. Lo que el arquitecto detecta por su cuenta queda en `## Sugerencias del arquitecto (no aprobadas)` (`G-xxx`) hasta que el usuario lo acepta.
+
+## Skills, MCP y CLAUDE.md
+
+Los roles heredan las herramientas de la sesión principal, incluidos los MCP y la herramienta Skill, así que pueden usar las skills globales, las del proyecto y las de plugins. El `CLAUDE.md` del proyecto se carga solo. El arquitecto no tiene `Bash`.
+
+- **Skills de un rol:** para que un rol siempre use ciertas skills, agrégalas a `roles.<rol>.skills` en `config.json`; el rol las invoca al empezar.
+- **Acciones externas:** los roles pueden consultar libremente por MCP, pero solo hacen acciones con efecto externo (escribir en Jira, enviar mensajes, desplegar) si la tarea lo pide.
+- **Lo que no pueden hacer:** los subagentes no pueden preguntarte directamente; dejan sus dudas en `preguntas.md`.
+
 ## Estructura en cada proyecto
 
 ```

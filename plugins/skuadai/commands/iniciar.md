@@ -24,14 +24,14 @@ Si el primer término es `nuevo`, `en-curso` o `mantenimiento`, es el tipo de pr
 4. Consigue la información para el plan según el tipo. Usa la descripción de los argumentos si la hay; si no, pídela:
    - **nuevo**: qué debe lograr el proyecto. Si ya tiene un plan en otro lado, que lo pegue.
    - **en-curso**: qué debe lograr, qué cree que ya está hecho y el plan original si lo tiene (que lo pegue o indique el archivo).
-   - **mantenimiento**: las solicitudes que ya tiene pendientes, si hay alguna. Puede no haber ninguna todavía.
+   - **mantenimiento**: las solicitudes que ya tiene pendientes, si hay alguna. Puede no haber ninguna todavía. Solo lo que el usuario pida entra al backlog `## Solicitudes`. Lo que el arquitecto detecte por su cuenta queda en `## Sugerencias del arquitecto (no aprobadas)`.
 
    Con eso, lanza el subagente **arquitecto** con el modelo de `roles.arquitecto.modelo`. Pásale el tipo y lo que dio el usuario, para que escriba `.skuadai/plan.md` con el formato de ese tipo. Si `plan.md` ya existe, el arquitecto lo actualiza en vez de reemplazarlo.
 
 5. **Aprobación del plan.** Muestra un resumen: las fases con su estado, o las solicitudes en mantenimiento, y las dudas que dejó el arquitecto. No pegues el plan entero. Pide al usuario que lo revise:
    - Si pide cambios, vuelve a lanzar al arquitecto con ellos.
    - Cuando lo apruebe, cambia "Estado" en `plan.md` a `aprobado`.
-   - En **mantenimiento** no hace falta aprobar el backlog completo: cada solicitud se aprueba con su spec, en `nueva-fase`.
+   - En **mantenimiento** no hace falta aprobar el backlog completo: cada solicitud se aprueba con su spec, en `nueva-fase`. Muestra las solicitudes y, aparte, las sugerencias del arquitecto, aclarando que son propuestas. Pregunta cuáles acepta: las aceptadas se mueven a `## Solicitudes` con el siguiente S-xxx; las otras quedan como sugerencias o se borran, según diga el usuario.
 
 6. Termina con un resumen corto y el siguiente paso:
    - **nuevo**: `/skuadai:nueva-fase 01`.

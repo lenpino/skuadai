@@ -1,6 +1,6 @@
 {
   "name": "skuadai",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Desarrollo guiado por specs con un equipo de roles (arquitecto, desarrollador, tester). Estado en archivos para reiniciar sesiones sin perder el hilo, y registro de costos por modelo.",
   "author": {
     "name": "lenpino"

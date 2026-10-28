@@ -3,9 +3,9 @@
   "tipo": null,
   "faseActiva": null,
   "roles": {
-    "arquitecto": { "activo": true, "modelo": "opus" },
-    "desarrollador": { "activo": true, "modelo": "sonnet" },
-    "tester": { "activo": true, "modelo": "sonnet" }
+    "arquitecto": { "activo": true, "modelo": "opus", "skills": [] },
+    "desarrollador": { "activo": true, "modelo": "sonnet", "skills": [] },
+    "tester": { "activo": true, "modelo": "sonnet", "skills": [] }
   },
   "reglas": {
     "detenerseAnteDesvios": true,
