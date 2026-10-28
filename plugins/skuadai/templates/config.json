@@ -1,5 +1,6 @@
 {
   "proyecto": "",
+  "tipo": null,
   "faseActiva": null,
   "roles": {
     "arquitecto": { "activo": true, "modelo": "opus" },

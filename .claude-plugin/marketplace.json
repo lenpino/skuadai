@@ -11,7 +11,7 @@
       "name": "skuadai",
       "source": "./plugins/skuadai",
       "description": "Equipo de agentes (arquitecto, desarrollador, tester) que trabaja por fases a partir de specs, se detiene ante gaps y registra costos.",
-      "version": "0.1.1"
+      "version": "0.2.0"
     }
   ]
 }

@@ -25,6 +25,6 @@ Elige la tarea indicada o la siguiente `pendiente` cuyas dependencias estén ter
 
 ## Higiene de contexto (el "reinicio")
 - Después de **3 tareas** en esta sesión, o si notas que el contexto creció mucho, detén el ciclo aunque queden tareas. Dile al usuario que ejecute `/clear` y luego `/skuadai:implementar` para continuar con contexto limpio: todo el estado está en `progreso.md`.
-- Al terminar todas las tareas, pide al arquitecto una revisión final de los criterios de aceptación de la fase y muestra el resultado.
+- Al terminar todas las tareas, pide al arquitecto una revisión final de los criterios de aceptación de la fase y muestra el resultado. Si la fase queda aceptada, el arquitecto la marca como hecha en `plan.md`. En mantenimiento, eso significa marcar la solicitud `- [x] S-xxx … (fase <id>)`.
 
 Termina siempre con: tareas hechas en esta sesión, tareas pendientes y el siguiente comando sugerido.

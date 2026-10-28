@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // SkuadAI: utilidades del plugin (estructura del proyecto, hooks y costos).
 // Uso:
-//   node skuadai.js iniciar            crea .skuadai/ en el directorio actual
+//   node skuadai.js iniciar [tipo]     crea .skuadai/ en el directorio actual
+//                                      (tipo: nuevo | en-curso | mantenimiento)
 //   node skuadai.js fase <id>          crea .skuadai/fases/fase-<id>/ y la marca activa
 //   node skuadai.js estado             avance por fase y costo estimado
 //   node skuadai.js hook-inicio        hook SessionStart (lee JSON por stdin)
@@ -13,6 +14,7 @@ const path = require("path");
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATES = path.join(PLUGIN_ROOT, "templates");
 const MAX_PROGRESO = 6000;
+const TIPOS = ["nuevo", "en-curso", "mantenimiento"];
 
 // ---------- utilidades ----------
 
@@ -93,22 +95,43 @@ function resumenTareas(archivo) {
   return conteo;
 }
 
+// Backlog de mantenimiento en plan.md: "- [ ] S-001 …" pendiente, "- [x] S-001 …" hecha.
+function solicitudesPendientes(archivo) {
+  if (!fs.existsSync(archivo)) return [];
+  return fs
+    .readFileSync(archivo, "utf8")
+    .split(/\r?\n/)
+    .filter((l) => /^\s*- \[ \] S-\d+/.test(l))
+    .map((l) => l.replace(/^\s*- \[ \] /, ""));
+}
+
 // ---------- comandos ----------
 
-function iniciar() {
+function iniciar(tipo) {
+  if (tipo && !TIPOS.includes(tipo)) {
+    console.error(`Tipo desconocido: ${tipo}. Usa: ${TIPOS.join(" | ")}`);
+    process.exit(1);
+  }
   const raiz = process.cwd();
   const r = rutas(raiz);
   const creados = [];
   if (!fs.existsSync(r.config)) {
     const config = leerJSON(path.join(TEMPLATES, "config.json"), {});
     config.proyecto = path.basename(raiz);
+    if (tipo) config.tipo = tipo;
     escribirJSON(r.config, config);
     creados.push(".skuadai/config.json");
+  } else if (tipo) {
+    // Fijar el tipo es lo único que se cambia en un proyecto ya iniciado.
+    const config = leerJSON(r.config, {});
+    config.tipo = tipo;
+    escribirJSON(r.config, config);
   }
   fs.mkdirSync(r.fases, { recursive: true });
   fs.mkdirSync(r.sesiones, { recursive: true });
   console.log(creados.length ? `Creado: ${creados.join(", ")}` : "SkuadAI ya estaba iniciado en este proyecto; no se sobrescribió nada.");
   console.log(`Raíz: ${raiz}`);
+  console.log(`Tipo: ${leerJSON(r.config, {}).tipo || "sin definir (pregúntalo al usuario)"}`);
   console.log(fs.existsSync(r.plan) ? "plan.md: ya existe." : "plan.md: pendiente (lo escribe el arquitecto).");
 }
 
@@ -229,11 +252,17 @@ function estado() {
   const tok = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}k` : String(n));
 
   console.log(`# SkuadAI — ${config.proyecto || path.basename(raiz)}`);
-  console.log(`Fase activa: ${config.faseActiva || "—"}`);
+  console.log(`Tipo: ${config.tipo || "—"} · fase activa: ${config.faseActiva || "—"}`);
   const roles = Object.entries(config.roles || {})
     .filter(([, v]) => v.activo)
     .map(([k, v]) => `${k}=${v.modelo}`);
   console.log(`Roles: ${roles.join(", ") || "—"}\n`);
+
+  if (config.tipo === "mantenimiento") {
+    const pend = solicitudesPendientes(r.plan);
+    console.log(`## Solicitudes pendientes (${pend.length})`);
+    console.log((pend.length ? pend.map((p) => `- ${p}`).join("\n") : "(ninguna)") + "\n");
+  }
 
   console.log("## Fases");
   let fases = [];
@@ -295,7 +324,11 @@ function hookInicio() {
   const roles = Object.entries(config.roles || {})
     .filter(([, v]) => v.activo)
     .map(([k, v]) => `${k}=${v.modelo}`);
-  lineas.push(`Proyecto SkuadAI: ${config.proyecto || path.basename(raiz)} · roles: ${roles.join(", ")}`);
+  lineas.push(`Proyecto SkuadAI: ${config.proyecto || path.basename(raiz)} · tipo: ${config.tipo || "sin definir"} · roles: ${roles.join(", ")}`);
+  if (config.tipo === "mantenimiento") {
+    const pend = solicitudesPendientes(r.plan);
+    if (pend.length) lineas.push(`Solicitudes pendientes en plan.md (${pend.length}):\n- ${pend.slice(0, 10).join("\n- ")}`);
+  }
 
   const fase = config.faseActiva;
   if (!fase) {
@@ -324,7 +357,7 @@ const [cmd, arg] = process.argv.slice(2);
 try {
   switch (cmd) {
     case "iniciar":
-      iniciar();
+      iniciar(arg);
       break;
     case "fase":
       crearFase(arg);
@@ -339,7 +372,7 @@ try {
       hookCosto();
       break;
     default:
-      console.log("Uso: node skuadai.js <iniciar | fase <id> | estado | hook-inicio | hook-costo>");
+      console.log("Uso: node skuadai.js <iniciar [tipo] | fase <id> | estado | hook-inicio | hook-costo>");
   }
 } catch (e) {
   // Un hook nunca debe bloquear la sesión.

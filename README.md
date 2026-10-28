@@ -29,11 +29,21 @@ Requiere Node.js (lo usan los hooks y el script de estado).
 
 | Paso | Comando | Qué pasa |
 |---|---|---|
-| 1 | `/skuadai:iniciar [descripción]` | Crea `.skuadai/`, eliges roles y modelos, y el arquitecto escribe `plan.md`. |
+| 1 | `/skuadai:iniciar [tipo] [descripción]` | Crea `.skuadai/`, eliges el tipo de proyecto, los roles y sus modelos. El arquitecto escribe `plan.md` y tú lo apruebas. |
 | 2 | `/skuadai:nueva-fase 03 [objetivo]` | El arquitecto escribe la spec de la fase, dividida en tareas pequeñas. Tú la revisas y apruebas. |
 | 3 | `/skuadai:implementar` | El orquestador lanza al desarrollador y al tester tarea por tarea. Se detiene si aparece una pregunta. |
 | 4 | `/skuadai:preguntas` | Respondes tú o el arquitecto; la spec se actualiza. Vuelves al paso 3. |
 | — | `/skuadai:estado` | Avance por fase y costo estimado por modelo y por fase. |
+
+## Tipos de proyecto
+
+| Tipo | Cuándo | Qué contiene `plan.md` | Qué es una fase |
+|---|---|---|---|
+| `nuevo` | Se parte de cero | Fases planificadas de antemano | Una fase del plan |
+| `en-curso` | Hay código y parte del plan hecho, pero no está terminado | "Estado actual" verificado contra el código y las fases hechas y pendientes | Una fase pendiente |
+| `mantenimiento` | El proyecto está terminado y llegan solicitudes sueltas | Mapa del sistema y backlog `- [ ] S-001 …` | Una solicitud, con cambios acotados y sin romper los tests existentes |
+
+El tipo queda en `config.json` (`tipo`). `/skuadai:estado` muestra las solicitudes pendientes cuando el proyecto está en mantenimiento.
 
 ## Estructura en cada proyecto
 
