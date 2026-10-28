@@ -1,0 +1,17 @@
+{
+  "name": "skuadai",
+  "owner": {
+    "name": "lenpino"
+  },
+  "metadata": {
+    "description": "Marketplace personal con el plugin SkuadAI: desarrollo guiado por specs con un equipo de roles."
+  },
+  "plugins": [
+    {
+      "name": "skuadai",
+      "source": "./plugins/skuadai",
+      "description": "Equipo de agentes (arquitecto, desarrollador, tester) que trabaja por fases a partir de specs, se detiene ante gaps y registra costos.",
+      "version": "0.1.0"
+    }
+  ]
+}
