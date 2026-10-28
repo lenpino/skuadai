@@ -18,7 +18,8 @@ Si el primer término es `nuevo`, `en-curso` o `mantenimiento`, es el tipo de pr
    ```
    Crea `.skuadai/` con `config.json` (con `tipo`), `fases/` y `costos/`. Si ya existía, solo actualiza `tipo`; no sobrescribe nada más. El `plan.md` lo escribe el arquitecto en el paso 4.
 
-3. Muestra al usuario los roles y modelos de `.skuadai/config.json` y pregúntale si quiere cambiar algo: activar o desactivar roles, el modelo de cada rol (`fable`, `opus`, `sonnet` o `haiku`) y un presupuesto opcional en USD. Aplica los cambios en el archivo.
+3. Muestra al usuario los roles y modelos de `.skuadai/config.json` y pregúntale si quiere cambiar algo: activar o desactivar roles, el modelo de cada rol (`fable`, `opus`, `sonnet` o `haiku`) y un tope de consumo opcional. Aplica los cambios en el archivo.
+   Al ofrecer el tope, explica que **no se cobra nada ni hace falta una API key**: SkuadAI cuenta los tokens que usa tu cuenta (Pro, Max o API) leyendo las transcripciones locales. El tope es solo un aviso en `/skuadai:estado`. Puede ser en tokens (`presupuestoTokens`) o en USD equivalentes a la API (`presupuestoUSD`).
 
 4. Consigue la información para el plan según el tipo. Usa la descripción de los argumentos si la hay; si no, pídela:
    - **nuevo**: qué debe lograr el proyecto. Si ya tiene un plan en otro lado, que lo pegue.

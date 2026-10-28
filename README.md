@@ -33,7 +33,7 @@ Requiere Node.js (lo usan los hooks y el script de estado).
 | 2 | `/skuadai:nueva-fase 03 [objetivo]` | El arquitecto escribe la spec de la fase, dividida en tareas pequeñas. Tú la revisas y apruebas. |
 | 3 | `/skuadai:implementar` | El orquestador lanza al desarrollador y al tester tarea por tarea. Se detiene si aparece una pregunta. |
 | 4 | `/skuadai:preguntas` | Respondes tú o el arquitecto; la spec se actualiza. Vuelves al paso 3. |
-| — | `/skuadai:estado` | Avance por fase y costo estimado por modelo y por fase. |
+| — | `/skuadai:estado` | Avance por fase y tokens por etapa y rol (USD equivalentes como referencia). |
 
 ## Tipos de proyecto
 
@@ -69,7 +69,21 @@ Conviene versionar `.skuadai/` salvo `costos/`, si no quieres compartirlo.
 
 ## Costos
 
-Los hooks `Stop` y `SubagentStop` leen la transcripción de la sesión (incluidas las de subagentes) y guardan los tokens por modelo. El costo en USD se calcula con la tabla `precios` de `config.json` (tarifas de la API de Anthropic, por millón de tokens). Con una suscripción Pro o Max no pagas por token: el número sirve como medida de uso equivalente.
+No hace falta una API key. Los hooks `Stop` y `SubagentStop` leen las transcripciones locales de la sesión y de sus subagentes, y guardan los tokens **por etapa y por rol**. La sesión principal cuenta como `orquestador`. Lo nuevo de cada transcripción se asigna a la fase activa en ese momento.
+
+`/skuadai:estado [fase]` muestra una tabla por etapa, con una fila por rol y el total de la etapa. Las columnas son:
+- **Entrada:** tokens nuevos de entrada.
+- **Caché escr.** y **Caché lect.:** contexto que se guarda en caché y que se relee en cada llamada.
+- **Salida:** tokens generados, con los de razonamiento entre paréntesis.
+- **Total:** la suma de las anteriores.
+- **Llamadas:** cuántas veces se llamó al modelo.
+- **Contexto máx.:** el tamaño del contexto más grande que alcanzó el rol.
+
+Debajo de cada tabla aparecen las herramientas que usó cada rol.
+
+La columna **USD eq.** usa la tabla `precios` de `config.json`, con las tarifas de la API de Anthropic. Con Pro o Max no pagas por token: es solo una referencia para comparar. Puedes fijar un tope de aviso en tokens (`presupuestoTokens`) o en USD equivalentes (`presupuestoUSD`).
+
+Las transcripciones no registran cómo se reparte el contexto entre system prompt, herramientas, MCP o skills, así que ese desglose no está disponible.
 
 ## Pendiente (ideas para siguientes versiones)
 

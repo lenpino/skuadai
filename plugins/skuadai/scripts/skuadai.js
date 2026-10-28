@@ -4,7 +4,7 @@
 //   node skuadai.js iniciar [tipo]     crea .skuadai/ en el directorio actual
 //                                      (tipo: nuevo | en-curso | mantenimiento)
 //   node skuadai.js fase <id>          crea .skuadai/fases/fase-<id>/ y la marca activa
-//   node skuadai.js estado             avance por fase y costo estimado
+//   node skuadai.js estado [fase]      avance por fase y tokens por etapa y rol
 //   node skuadai.js hook-inicio        hook SessionStart (lee JSON por stdin)
 //   node skuadai.js hook-costo         hook Stop / SubagentStop (lee JSON por stdin)
 
@@ -158,6 +158,15 @@ function crearFase(id) {
 }
 
 // ---------- costos ----------
+//
+// Cada sesión guarda .skuadai/costos/sesiones/<id>.json con los tokens por fase y por rol:
+//   porFase[fase][rol] = { modelos: { <modelo>: tokens }, herramientas: { Read: 3 }, contextoMax }
+// La sesión principal es el rol "orquestador"; cada subagente aporta su rol (arquitecto, desarrollador…).
+// Las transcripciones solo crecen: se guarda por archivo cuántas líneas ya se leyeron, y lo nuevo
+// se asigna a la fase activa en ese momento.
+
+const CAMPOS = ["input", "cacheWrite", "cacheRead", "output", "thinking", "llamadas"];
+const SIN_FASE = "(sin fase)";
 
 // Precio por familia (opus, sonnet…). Un ID exacto en la tabla, si existe, tiene prioridad.
 function precioDe(modelo, precios) {
@@ -168,14 +177,30 @@ function precioDe(modelo, precios) {
   return null;
 }
 
-function sumarArchivo(file, vistos, totales) {
-  let texto;
+function usdDe(modelo, t, precios) {
+  const p = precioDe(modelo, precios);
+  return p ? (t.input * p.input + t.output * p.output + t.cacheWrite * p.cacheWrite + t.cacheRead * p.cacheRead) / 1e6 : 0;
+}
+
+const totalTokens = (t) => t.input + t.cacheWrite + t.cacheRead + t.output;
+
+function statsVacias() {
+  return { modelos: {}, herramientas: {}, contextoMax: 0 };
+}
+
+// Suma a `destino` (stats) los mensajes nuevos de un archivo de transcripción.
+function sumarArchivo(file, cursor, destino) {
+  let lineas;
   try {
-    texto = fs.readFileSync(file, "utf8");
+    lineas = fs.readFileSync(file, "utf8").split(/\r?\n/);
   } catch {
     return;
   }
-  for (const linea of texto.split(/\r?\n/)) {
+  // La última línea puede estar a medio escribir: se deja para la próxima vez.
+  const hasta = lineas.length - 1;
+  const vistos = new Set(cursor.ultimosIds || []);
+  for (let i = cursor.lineas || 0; i < hasta; i++) {
+    const linea = lineas[i];
     if (!linea.includes('"usage"')) continue;
     let obj;
     try {
@@ -187,25 +212,47 @@ function sumarArchivo(file, vistos, totales) {
     if (obj.type !== "assistant" || !msg || !msg.usage || !msg.model || msg.model.startsWith("<")) continue;
     // Un mismo mensaje puede aparecer en varias líneas (un bloque de contenido por línea).
     const clave = msg.id || obj.uuid;
+    for (const b of msg.content || []) {
+      if (b.type === "tool_use") destino.herramientas[b.name] = (destino.herramientas[b.name] || 0) + 1;
+    }
     if (vistos.has(clave)) continue;
     vistos.add(clave);
     const u = msg.usage;
-    const t = (totales[msg.model] = totales[msg.model] || { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 });
+    const t = (destino.modelos[msg.model] = destino.modelos[msg.model] || Object.fromEntries(CAMPOS.map((c) => [c, 0])));
     t.input += u.input_tokens || 0;
-    t.output += u.output_tokens || 0;
     t.cacheWrite += u.cache_creation_input_tokens || 0;
     t.cacheRead += u.cache_read_input_tokens || 0;
+    t.output += u.output_tokens || 0;
+    t.thinking += (u.output_tokens_details && u.output_tokens_details.thinking_tokens) || 0;
+    t.llamadas += 1;
+    const contexto = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+    destino.contextoMax = Math.max(destino.contextoMax, contexto);
   }
+  cursor.lineas = hasta;
+  cursor.ultimosIds = [...vistos].slice(-50);
 }
 
-// Transcripciones de subagentes: <dir>/<sesión>/subagents/*.jsonl
-function archivosSubagentes(transcript) {
-  const dir = path.join(path.dirname(transcript), path.basename(transcript, ".jsonl"), "subagents");
-  try {
-    return fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl")).map((f) => path.join(dir, f));
-  } catch {
-    return [];
+function mezclar(destino, origen) {
+  for (const [m, t] of Object.entries(origen.modelos)) {
+    const d = (destino.modelos[m] = destino.modelos[m] || Object.fromEntries(CAMPOS.map((c) => [c, 0])));
+    for (const c of CAMPOS) d[c] += t[c] || 0;
   }
+  for (const [h, n] of Object.entries(origen.herramientas)) destino.herramientas[h] = (destino.herramientas[h] || 0) + n;
+  destino.contextoMax = Math.max(destino.contextoMax || 0, origen.contextoMax || 0);
+}
+
+// Transcripciones de subagentes: <dir>/<sesión>/subagents/agent-<id>.jsonl, con su rol en agent-<id>.meta.json.
+function subagentes(transcript) {
+  const dir = path.join(path.dirname(transcript), path.basename(transcript, ".jsonl"), "subagents");
+  let archivos = [];
+  try {
+    archivos = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
+  } catch {}
+  return archivos.map((f) => {
+    const meta = leerJSON(path.join(dir, f.replace(/\.jsonl$/, ".meta.json")), {});
+    const rol = (meta.agentType || "subagente").replace(/^skuadai:/, "");
+    return { archivo: path.join(dir, f), rol };
+  });
 }
 
 function hookCosto() {
@@ -214,33 +261,54 @@ function hookCosto() {
   if (!raiz || !entrada.transcript_path || !entrada.session_id) return;
   const r = rutas(raiz);
   const config = leerJSON(r.config, {});
-  const precios = config.precios || {};
-
-  const vistos = new Set();
-  const totales = {};
-  sumarArchivo(entrada.transcript_path, vistos, totales);
-  for (const f of archivosSubagentes(entrada.transcript_path)) sumarArchivo(f, vistos, totales);
-
-  let usd = 0;
-  for (const [modelo, t] of Object.entries(totales)) {
-    const p = precioDe(modelo, precios);
-    t.usd = p ? (t.input * p.input + t.output * p.output + t.cacheWrite * p.cacheWrite + t.cacheRead * p.cacheRead) / 1e6 : 0;
-    usd += t.usd;
-  }
+  const fase = config.faseActiva || SIN_FASE;
 
   const archivo = path.join(r.sesiones, `${entrada.session_id}.json`);
-  const previo = leerJSON(archivo, {});
-  escribirJSON(archivo, {
-    sesion: entrada.session_id,
-    fase: previo.fase || config.faseActiva || null,
-    inicio: previo.inicio || new Date().toISOString(),
-    actualizado: new Date().toISOString(),
-    modelos: totales,
-    usd,
-  });
+  let s = leerJSON(archivo, {});
+  // Los registros de la versión 0.1 no tienen cursores: se recalculan desde cero.
+  if (s.version !== 2) s = { sesion: entrada.session_id, inicio: s.inicio || new Date().toISOString() };
+  s.version = 2;
+  s.archivos = s.archivos || {};
+  s.porFase = s.porFase || {};
+
+  const fuentes = [{ archivo: entrada.transcript_path, rol: "orquestador" }, ...subagentes(entrada.transcript_path)];
+  for (const { archivo: f, rol } of fuentes) {
+    const nuevo = statsVacias();
+    const cursor = (s.archivos[path.basename(f)] = s.archivos[path.basename(f)] || {});
+    sumarArchivo(f, cursor, nuevo);
+    if (!Object.keys(nuevo.modelos).length && !Object.keys(nuevo.herramientas).length) continue;
+    const porRol = (s.porFase[fase] = s.porFase[fase] || {});
+    mezclar((porRol[rol] = porRol[rol] || statsVacias()), nuevo);
+  }
+  s.actualizado = new Date().toISOString();
+  escribirJSON(archivo, s);
 }
 
-function estado() {
+// Junta todas las sesiones: porFase[fase][rol] = stats.
+function costosPorFase(r) {
+  const porFase = {};
+  let sesiones = 0;
+  let archivos = [];
+  try {
+    archivos = fs.readdirSync(r.sesiones).filter((x) => x.endsWith(".json"));
+  } catch {}
+  for (const f of archivos) {
+    const s = leerJSON(path.join(r.sesiones, f), null);
+    if (!s) continue;
+    sesiones++;
+    // Registro de la versión 0.1: solo totales por modelo, sin rol.
+    const datos = s.version === 2 ? s.porFase || {} : { [s.fase || SIN_FASE]: { "(sin rol)": { modelos: s.modelos || {}, herramientas: {}, contextoMax: 0 } } };
+    for (const [fase, roles] of Object.entries(datos)) {
+      for (const [rol, st] of Object.entries(roles)) {
+        const destino = ((porFase[fase] = porFase[fase] || {})[rol] = porFase[fase][rol] || statsVacias());
+        mezclar(destino, st);
+      }
+    }
+  }
+  return { porFase, sesiones };
+}
+
+function estado(faseFiltro) {
   const raiz = buscarRaiz();
   if (!raiz) {
     console.log("No hay .skuadai/ en este proyecto. Ejecuta /skuadai:iniciar.");
@@ -248,8 +316,9 @@ function estado() {
   }
   const r = rutas(raiz);
   const config = leerJSON(r.config, {});
+  const precios = config.precios || {};
   const fmt = (n) => `$${n.toFixed(2)}`;
-  const tok = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}k` : String(n));
+  const tok = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 
   console.log(`# SkuadAI — ${config.proyecto || path.basename(raiz)}`);
   console.log(`Tipo: ${config.tipo || "—"} · fase activa: ${config.faseActiva || "—"}`);
@@ -279,35 +348,64 @@ function estado() {
     console.log(`- ${d}: ${tareas || "sin tareas"}${abiertas ? ` · ${abiertas} pregunta(s) abierta(s)` : ""}`);
   }
 
-  const porModelo = {};
-  const porFase = {};
-  let total = 0;
-  let sesiones = 0;
-  try {
-    for (const f of fs.readdirSync(r.sesiones).filter((x) => x.endsWith(".json"))) {
-      const s = leerJSON(path.join(r.sesiones, f), null);
-      if (!s) continue;
-      sesiones++;
-      total += s.usd || 0;
-      const fase = s.fase || "(sin fase)";
-      porFase[fase] = (porFase[fase] || 0) + (s.usd || 0);
-      for (const [m, t] of Object.entries(s.modelos || {})) {
-        const a = (porModelo[m] = porModelo[m] || { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, usd: 0 });
-        for (const k of Object.keys(a)) a[k] += t[k] || 0;
-      }
-    }
-  } catch {}
+  const { porFase, sesiones } = costosPorFase(r);
+  console.log(`\n## Consumo por etapa y rol (${sesiones} sesión(es))`);
+  console.log("Tokens de tu cuenta. \"USD eq.\" es lo que costaría con las tarifas de la API: con Pro o Max es solo una referencia; no se cobra.");
+  console.log("\"Caché lect.\" es el contexto que se relee en cada llamada: suele dominar el total, pero es lo más liviano.");
+  const orden = Object.keys(porFase)
+    .filter((f) => !faseFiltro || f === faseFiltro)
+    .sort((a, b) => (a === SIN_FASE ? -1 : b === SIN_FASE ? 1 : a.localeCompare(b)));
+  if (!orden.length) console.log("\n(sin consumo registrado todavía)");
 
-  console.log(`\n## Costo estimado (${sesiones} sesión(es))`);
-  console.log("| Modelo | Entrada | Salida | Caché escr. | Caché lect. | USD |");
-  console.log("|---|---:|---:|---:|---:|---:|");
-  for (const [m, t] of Object.entries(porModelo).sort((a, b) => b[1].usd - a[1].usd)) {
-    console.log(`| ${m} | ${tok(t.input)} | ${tok(t.output)} | ${tok(t.cacheWrite)} | ${tok(t.cacheRead)} | ${fmt(t.usd)} |`);
+  let granTotal = 0;
+  let granUsd = 0;
+  const porModelo = {};
+  for (const fase of orden) {
+    console.log(`\n### ${fase === SIN_FASE ? "Antes de la primera fase (inicio y plan)" : `Fase ${fase}`}`);
+    console.log("| Rol | Modelo | Entrada | Caché escr. | Caché lect. | Salida (razon.) | **Total** | Llamadas | Contexto máx. | USD eq. |");
+    console.log("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|");
+    const suma = Object.fromEntries(CAMPOS.map((c) => [c, 0]));
+    let usdFase = 0;
+    const herramientas = [];
+    const rolesFase = Object.entries(porFase[fase]).sort((a, b) => (a[0] === "orquestador" ? -1 : b[0] === "orquestador" ? 1 : a[0].localeCompare(b[0])));
+    for (const [rol, st] of rolesFase) {
+      const t = Object.fromEntries(CAMPOS.map((c) => [c, 0]));
+      let usd = 0;
+      for (const [m, mt] of Object.entries(st.modelos)) {
+        for (const c of CAMPOS) t[c] += mt[c] || 0;
+        usd += usdDe(m, mt, precios);
+        const pm = (porModelo[m] = porModelo[m] || Object.fromEntries(CAMPOS.map((c) => [c, 0])));
+        for (const c of CAMPOS) pm[c] += mt[c] || 0;
+      }
+      for (const c of CAMPOS) suma[c] += t[c];
+      usdFase += usd;
+      const modelos = Object.keys(st.modelos).map((m) => m.replace(/^claude-/, "")).join(", ");
+      const razon = t.thinking ? ` (${tok(t.thinking)})` : "";
+      console.log(`| ${rol} | ${modelos} | ${tok(t.input)} | ${tok(t.cacheWrite)} | ${tok(t.cacheRead)} | ${tok(t.output)}${razon} | **${tok(totalTokens(t))}** | ${t.llamadas} | ${tok(st.contextoMax)} | ${fmt(usd)} |`);
+      const h = Object.entries(st.herramientas).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(" · ");
+      if (h) herramientas.push(`- ${rol}: ${h}`);
+    }
+    const razon = suma.thinking ? ` (${tok(suma.thinking)})` : "";
+    console.log(`| **Total etapa** | | ${tok(suma.input)} | ${tok(suma.cacheWrite)} | ${tok(suma.cacheRead)} | ${tok(suma.output)}${razon} | **${tok(totalTokens(suma))}** | ${suma.llamadas} | | ${fmt(usdFase)} |`);
+    if (herramientas.length) console.log(`\nHerramientas usadas:\n${herramientas.join("\n")}`);
+    granTotal += totalTokens(suma);
+    granUsd += usdFase;
   }
-  console.log("");
-  for (const [f, v] of Object.entries(porFase).sort()) console.log(`- Fase ${f}: ${fmt(v)}`);
-  const pres = config.presupuestoUSD;
-  console.log(`\n**Total: ${fmt(total)}**${pres ? ` de ${fmt(pres)} (${Math.round((total / pres) * 100)}%)` : ""}`);
+
+  if (orden.length) {
+    console.log(`\n## Total por modelo${faseFiltro ? ` (fase ${faseFiltro})` : ""}`);
+    console.log("| Modelo | Entrada | Caché escr. | Caché lect. | Salida | **Total** | USD eq. |");
+    console.log("|---|---:|---:|---:|---:|---:|---:|");
+    for (const [m, t] of Object.entries(porModelo).sort((a, b) => totalTokens(b[1]) - totalTokens(a[1]))) {
+      console.log(`| ${m} | ${tok(t.input)} | ${tok(t.cacheWrite)} | ${tok(t.cacheRead)} | ${tok(t.output)} | **${tok(totalTokens(t))}** | ${fmt(usdDe(m, t, precios))} |`);
+    }
+  }
+  const topeT = config.presupuestoTokens;
+  const topeU = config.presupuestoUSD;
+  let linea = `\n**Total: ${tok(granTotal)} tokens** (${fmt(granUsd)} USD eq.)`;
+  if (!faseFiltro && topeT) linea += ` · tope ${tok(topeT)} tokens (${Math.round((granTotal / topeT) * 100)}%)`;
+  if (!faseFiltro && topeU) linea += ` · tope ${fmt(topeU)} USD eq. (${Math.round((granUsd / topeU) * 100)}%)`;
+  console.log(linea);
 }
 
 function hookInicio() {
@@ -363,7 +461,7 @@ try {
       crearFase(arg);
       break;
     case "estado":
-      estado();
+      estado(arg);
       break;
     case "hook-inicio":
       hookInicio();
@@ -372,7 +470,7 @@ try {
       hookCosto();
       break;
     default:
-      console.log("Uso: node skuadai.js <iniciar [tipo] | fase <id> | estado | hook-inicio | hook-costo>");
+      console.log("Uso: node skuadai.js <iniciar [tipo] | fase <id> | estado [fase] | hook-inicio | hook-costo>");
   }
 } catch (e) {
   // Un hook nunca debe bloquear la sesión.

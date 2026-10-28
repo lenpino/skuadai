@@ -12,6 +12,7 @@
     "detenerseAnteGaps": true,
     "testsObligatorios": true
   },
+  "presupuestoTokens": null,
   "presupuestoUSD": null,
   "precios": {
     "_nota": "USD por millón de tokens, por familia de modelo (tarifas API de Anthropic para Fable 5.1, Opus 5.5, Sonnet 5.5 y Haiku 5.5). Ajusta si cambian. Para un modelo con precio distinto, agrega su ID exacto (ej. \"claude-opus-5\") y tendrá prioridad. Con suscripción Pro/Max es una estimación de uso equivalente.",
